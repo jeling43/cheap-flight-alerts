@@ -50,13 +50,24 @@ def find_flights(token):
         if res.status_code == 200:
             data = res.json()
             for offer in data.get("data", []):
-                dep = offer["itineraries"][0]["segments"][0]["departure"]["iataCode"]
-                arr = offer["itineraries"][0]["segments"][-1]["arrival"]["iataCode"]
+                itinerary = offer["itineraries"][0]
+                segments = itinerary["segments"]
+                
+                dep = segments[0]["departure"]["iataCode"]
+                arr = segments[-1]["arrival"]["iataCode"]
                 price = offer["price"]["total"]
+
+                # Collect airline codes
+                airlines = set(segment["carrierCode"] for segment in segments)
+                airline_list = ", ".join(airlines)
+
                 print(f"✈️ {dep} ➡️ {arr} for ${price}")
+                print(f"🛫 Airline(s): {airline_list}")
+                print("-" * 40)
         else:
             print(f"❌ Error searching for {destination}: {res.status_code}")
             print(res.text)
+
 
 
     res = requests.get(url, headers=headers, params=params)
