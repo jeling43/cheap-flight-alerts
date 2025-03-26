@@ -35,7 +35,7 @@ def get_token():
 def find_flights(token):
     url = f"{BASE_URL}/v2/shopping/flight-offers"
     headers = {"Authorization": f"Bearer {token}"}
-    destinations = ["LON", "CDG", "AMS", "BCN"]  # London, Paris, Amsterdam, Barcelona
+    destinations = ["LON", "DEN", "AMS", "BCN"]  # London, Paris, Amsterdam, Barcelona
 
     for destination in destinations:
         print(f"\n🔎 Searching ATL → {destination} ({departure_date} to {return_date})")
