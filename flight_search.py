@@ -1,22 +1,32 @@
 import requests
+import os
 import random
 from datetime import datetime, timedelta
 
-# 🔐 Amadeus API credentials
-API_KEY = "LY9Xij5iQ0SHbImW5hQlLluMHxzoaLgJ"
-API_SECRET = "e3Ue4xUt6BwqitZ0"
+# 🔐 Amadeus Test API credentials (use environment variables or replace here)
+API_KEY = os.getenv("AMADEUS_API_KEY", "your_key_here")
+API_SECRET = os.getenv("AMADEUS_API_SECRET", "your_secret_here")
 BASE_URL = "https://test.api.amadeus.com"
 
-# 📅 Generate departure/return dates
-departure_date = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
-trip_length = random.randint(7, 10)
-return_date = (datetime.today() + timedelta(days=1 + trip_length)).strftime("%Y-%m-%d")
+# Destination airport codes
+DESTINATIONS = ["DEN", "LON", "NYC"]
+PRICE_CAP = 750
 
-# 🔑 Get access token
+# Generate date ranges
+def generate_date_pairs():
+    today = datetime.today()
+    date_pairs = []
+    for days_out in range(30, 61):
+        dep = today + timedelta(days=days_out)
+        trip_length = random.randint(7, 10)
+        ret = dep + timedelta(days=trip_length)
+        date_pairs.append((dep.strftime("%Y-%m-%d"), ret.strftime("%Y-%m-%d")))
+    return date_pairs
+
+# Get Amadeus access token
 def get_token():
-    token_url = f"{BASE_URL}/v1/security/oauth2/token"
     res = requests.post(
-        token_url,
+        f"{BASE_URL}/v1/security/oauth2/token",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         data={
             "grant_type": "client_credentials",
@@ -31,56 +41,54 @@ def get_token():
         print(res.text)
         return None
 
-# ✈️ Find roundtrip flights from ATL to multiple destinations
-def find_flights(token):
+# Search for cheap roundtrip flights
+def find_cheap_flights(token):
     url = f"{BASE_URL}/v2/shopping/flight-offers"
     headers = {"Authorization": f"Bearer {token}"}
-    destinations = ["LON", "DEN", "AMS", "BCN"]  # London, Paris, Amsterdam, Barcelona
+    date_pairs = generate_date_pairs()
 
-    for destination in destinations:
-        print(f"\n🔎 Searching ATL → {destination} ({departure_date} to {return_date})")
+    for destination in DESTINATIONS:
+        print(f"\n🌍 Searching ATL → {destination}")
+        for dep_date, ret_date in date_pairs:
+            params = {
+                "originLocationCode": "ATL",
+                "destinationLocationCode": destination,
+                "departureDate": dep_date,
+                "returnDate": ret_date,
+                "adults": 1,
+                "max": 5,
+                "currencyCode": "USD"
+            }
 
-        params = {
-            "originLocationCode": "ATL",
-            "destinationLocationCode": destination,
-            "departureDate": departure_date,
-            "returnDate": return_date,
-            "adults": 1,
-            "max": 5,
-            "currencyCode": "USD"
-        }
+            res = requests.get(url, headers=headers, params=params)
 
-        res = requests.get(url, headers=headers, params=params)
+            if res.status_code == 200:
+                offers = res.json().get("data", [])
+                for offer in offers:
+                    price = float(offer["price"]["total"])
+                    if price <= PRICE_CAP:
+                        outbound = offer["itineraries"][0]["segments"]
+                        inbound = offer["itineraries"][1]["segments"]
+                        out_dep = outbound[0]["departure"]["at"]
+                        out_arr = outbound[-1]["arrival"]["at"]
+                        in_dep = inbound[0]["departure"]["at"]
+                        in_arr = inbound[-1]["arrival"]["at"]
+                        airlines = set(seg["carrierCode"] for seg in outbound + inbound)
 
-        if res.status_code == 200:
-            data = res.json()
-            for offer in data.get("data", []):
-                itineraries = offer["itineraries"]
-                price = offer["price"]["total"]
+                        print(f"🛫 {dep_date} ➡️ {ret_date}")
+                        print(f"   Outbound: {out_dep} ➡️ {out_arr}")
+                        print(f"   Return:   {in_dep} ➡️ {in_arr}")
+                        print(f"   Airline(s): {', '.join(airlines)}")
+                        print(f"💵 Total Price: ${price}")
+                        print("-" * 50)
+            else:
+                print(f"❌ Error for {destination} on {dep_date}: {res.status_code}")
 
-                for direction, itinerary in zip(["Outbound", "Return"], itineraries):
-                    segments = itinerary["segments"]
-                    dep_code = segments[0]["departure"]["iataCode"]
-                    dep_time = segments[0]["departure"]["at"]
-                    arr_code = segments[-1]["arrival"]["iataCode"]
-                    arr_time = segments[-1]["arrival"]["at"]
-                    airlines = set(segment["carrierCode"] for segment in segments)
-                    airline_list = ", ".join(airlines)
-
-                    print(f"📍 {direction}: {dep_code} ➡️ {arr_code}")
-                    print(f"   🕓 Depart: {dep_time}")
-                    print(f"   🛬 Arrive: {arr_time}")
-                    print(f"   🛫 Airline(s): {airline_list}")
-                print(f"💵 Total Price: ${price}")
-                print("-" * 60)
-        else:
-            print(f"❌ Error searching for {destination}: {res.status_code}")
-            print(res.text)
-
-# 🚀 Run the script
+# Main
 if __name__ == "__main__":
     token = get_token()
     if token:
-        find_flights(token)
+        find_cheap_flights(token)
+
 
 
