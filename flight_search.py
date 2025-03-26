@@ -4,8 +4,8 @@ import random
 from datetime import datetime, timedelta
 
 # 🔐 Amadeus Test API credentials (use environment variables or replace here)
-API_KEY = os.getenv("AMADEUS_API_KEY", "your_key_here")
-API_SECRET = os.getenv("AMADEUS_API_SECRET", "your_secret_here")
+API_KEY = os.getenv("AMADEUS_API_KEY", "LY9Xij5iQ0SHbImW5hQlLluMHxzoaLgJ
+API_SECRET = os.getenv("AMADEUS_API_SECRET", "e3Ue4xUt6BwqitZ0")
 BASE_URL = "https://test.api.amadeus.com"
 
 # Destination airport codes
